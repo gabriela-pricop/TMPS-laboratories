@@ -1,4 +1,5 @@
 ﻿using Lab3.Domain.Models;
+using Lab3.Domain.Shops;
 using Lab3.Patterns.Composite;
 using Lab3.Patterns.Decorator;
 using Lab3.Patterns.Facade;
@@ -8,10 +9,274 @@ namespace Lab3;
 
 class Program
 {
+    // Every topping the customer can choose. A new decorator is offered by adding one line here.
+    private static readonly IReadOnlyList<(string Name, Func<IBakedItem, IIngredientTypeProvider, IBakedItem> Apply)>
+        Toppings = new List<(string, Func<IBakedItem, IIngredientTypeProvider, IBakedItem>)>
+        {
+            ("Sea salt", (item, types) => new SeaSaltTopping(item, types)),
+            ("Chocolate drizzle", (item, types) => new ChocolateDrizzle(item, types)),
+            ("Walnut coating", (item, types) => new WalnutCoating(item, types))
+        };
+
     static void Main(string[] args)
     {
-         BakeryFacade bakery = new BakeryFacade();
+        if (args.Contains("--demo"))
+        {
+            RunPatternDemo(new BakeryFacade());
+            return;
+        }
 
+        RunInteractive(new BakeryFacade());
+    }
+
+    // ------------------------------------------------------------------
+    // Interactive bakery
+    // ------------------------------------------------------------------
+
+    private static void RunInteractive(BakeryFacade bakery)
+    {
+        GiftBox order = bakery.NewGiftBox("My order");
+
+        Console.WriteLine(new string('=', 70));
+        Console.WriteLine("  Welcome to the Bakery");
+        Console.WriteLine(new string('=', 70));
+
+        while (true)
+        {
+            Console.WriteLine();
+            Console.WriteLine("Main menu");
+            Console.WriteLine("  1) Order a product");
+            Console.WriteLine("  2) Make a gift box");
+            Console.WriteLine("  3) View my order");
+            Console.WriteLine("  4) Run the pattern demo");
+            Console.WriteLine("  0) Checkout and exit");
+
+            switch (ReadChoice(0, 4))
+            {
+                case 1:
+                    OrderProduct(bakery, order);
+                    break;
+                case 2:
+                    OrderGiftBox(bakery, order);
+                    break;
+                case 3:
+                    ShowOrder(bakery, order);
+                    break;
+                case 4:
+                    RunPatternDemo(new BakeryFacade());
+                    break;
+                case 0:
+                    Checkout(order);
+                    return;
+            }
+        }
+    }
+
+    // Keeps returning to the shop list after each product; 0 at the shop list goes back to the main menu.
+    private static void OrderProduct(BakeryFacade bakery, GiftBox order)
+    {
+        while (true)
+        {
+            IBakedItem? item = ChooseProduct(bakery, "");
+
+            if (item == null)
+            {
+                return;
+            }
+
+            order.Add(ChooseToppings(bakery, item, ""));
+
+            Console.WriteLine();
+            Console.WriteLine("Added to your order.");
+        }
+    }
+
+    private static void OrderGiftBox(BakeryFacade bakery, GiftBox order)
+    {
+        Console.WriteLine();
+        string name = ReadText("Name of the gift box: ", "Gift box");
+        GiftBox box = bakery.NewGiftBox(name);
+
+        while (true)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Add products to \"{box.Name}\" (0 = close the box)");
+
+            IBakedItem? item = ChooseProduct(bakery, "  ");
+
+            if (item == null)
+            {
+                break;
+            }
+
+            box.Add(ChooseToppings(bakery, item, "  "));
+            Console.WriteLine($"  Added. Box now has {box.Items.Count} item(s).");
+        }
+
+        if (box.Items.Count == 0)
+        {
+            Console.WriteLine("The box is empty, so it was not added to your order.");
+            return;
+        }
+
+        Console.WriteLine($"Box closed: [{box.Name}] - {box.Items.Count} item(s), {box.TotalWeightInGrams} g");
+
+        order.Add(box);
+
+        Console.WriteLine();
+        Console.WriteLine("Added to your order.");
+    }
+
+    // Returns null when the customer goes back without choosing.
+    private static IBakedItem? ChooseProduct(BakeryFacade bakery, string pad)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{pad}Shops in this bakery:");
+
+        for (int i = 0; i < bakery.Shops.Count; i++)
+        {
+            Console.WriteLine($"{pad}  {i + 1}) {bakery.Shops[i].ShopName}");
+        }
+
+        Console.WriteLine($"{pad}  0) Back");
+
+        int shopPosition = ReadChoice(0, bakery.Shops.Count, pad);
+
+        if (shopPosition == 0)
+        {
+            return null;
+        }
+
+        BakeryShop shop = bakery.Shops[shopPosition - 1];
+
+        Console.WriteLine();
+        Console.WriteLine($"{pad}{shop.ShopName}");
+
+        for (int i = 0; i < shop.Menu.Count; i++)
+        {
+            Console.WriteLine($"{pad}  {i + 1}) {shop.Menu[i]}");
+        }
+
+        Console.WriteLine($"{pad}  0) Back");
+
+        int menuPosition = ReadChoice(0, shop.Menu.Count, pad);
+
+        if (menuPosition == 0)
+        {
+            return null;
+        }
+
+        IBakedItem item = bakery.Order(shopPosition, menuPosition);
+
+        Console.WriteLine();
+        Console.WriteLine($"{pad}Built: {item.Name} ({item.TotalWeightInGrams} g)");
+
+        return item;
+    }
+
+    // Wraps the item in one decorator per chosen topping, in the order they are chosen.
+    private static IBakedItem ChooseToppings(BakeryFacade bakery, IBakedItem item, string pad)
+    {
+        Console.WriteLine();
+        Console.WriteLine($"{pad}Add a topping to {item.Name}? (0 = done)");
+
+        for (int i = 0; i < Toppings.Count; i++)
+        {
+            Console.WriteLine($"{pad}  {i + 1}) {Toppings[i].Name}");
+        }
+
+        while (true)
+        {
+            int choice = ReadChoice(0, Toppings.Count, pad);
+
+            if (choice == 0)
+            {
+                return item;
+            }
+
+            item = Toppings[choice - 1].Apply(item, bakery.Types);
+            Console.WriteLine($"{pad}  -> {item.Name} ({item.TotalWeightInGrams} g)");
+        }
+    }
+
+    private static void ShowOrder(BakeryFacade bakery, GiftBox order)
+    {
+        Console.WriteLine();
+
+        if (order.Items.Count == 0)
+        {
+            Console.WriteLine("Your order is empty.");
+            return;
+        }
+
+        Console.Write(order.Describe(0));
+        Console.WriteLine();
+
+        IEnumerable<string> allergens = order.Ingredients
+            .Select(ingredient => ingredient.Type)
+            .Where(type => type.HasAllergen)
+            .Select(type => type.Allergen)
+            .Distinct()
+            .OrderBy(allergen => allergen);
+
+        Console.WriteLine($"Total weight      : {order.TotalWeightInGrams} g");
+        Console.WriteLine($"Total calories    : {Math.Round(order.TotalCalories)} kcal");
+        Console.WriteLine($"Allergens         : {string.Join(", ", allergens)}");
+        Console.WriteLine($"Ingredient entries: {order.Ingredients.Count}");
+        Console.WriteLine($"Shared types      : {bakery.Types.PooledTypeCount}");
+    }
+
+    private static void Checkout(GiftBox order)
+    {
+        Console.WriteLine();
+
+        if (order.Items.Count == 0)
+        {
+            Console.WriteLine("Nothing ordered. Goodbye!");
+            return;
+        }
+
+        Console.WriteLine(
+            $"Thank you! Your order of {order.Items.Count} item(s), "
+            + $"{order.TotalWeightInGrams} g, is ready.");
+    }
+
+    // Keeps asking until a number in [min, max] is typed. End of input counts as 0 (back / exit).
+    private static int ReadChoice(int min, int max, string pad = "")
+    {
+        while (true)
+        {
+            Console.Write($"{pad}> ");
+            string? line = Console.ReadLine();
+
+            if (line == null)
+            {
+                return 0;
+            }
+
+            if (int.TryParse(line.Trim(), out int choice) && choice >= min && choice <= max)
+            {
+                return choice;
+            }
+
+            Console.WriteLine($"{pad}Please enter a number between {min} and {max}.");
+        }
+    }
+
+    private static string ReadText(string prompt, string fallback)
+    {
+        Console.Write(prompt);
+        string? line = Console.ReadLine();
+
+        return string.IsNullOrWhiteSpace(line) ? fallback : line.Trim();
+    }
+
+    // ------------------------------------------------------------------
+    // Scripted pattern demo (option 4, or: dotnet run -- --demo)
+    // ------------------------------------------------------------------
+
+    private static void RunPatternDemo(BakeryFacade bakery)
+    {
         Section("1. Flyweight - one ingredient type shared by every recipe");
         DemonstrateFlyweight(bakery);
 
