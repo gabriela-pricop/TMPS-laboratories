@@ -3,11 +3,11 @@ using Lab3.Patterns.Flyweight;
 
 namespace Lab3.Patterns.Decorator;
 
-public class ChocolateDrizzle :BakedItemDecorator
+public class ChocolateDrizzle : BakedItemDecorator
 {
     private readonly Ingredient topping;
 
-    public ChocolateDrizzle(IBakedItem inner, IngredientTypeFactory types)
+    public ChocolateDrizzle(IBakedItem inner, IIngredientTypeProvider types)
         : base(inner)
     {
         topping = new Ingredient(types.Get("Dark chocolate"), 45, "melted, drizzled");
@@ -23,9 +23,7 @@ public class ChocolateDrizzle :BakedItemDecorator
 
     public override double TotalCalories => Inner.TotalCalories + topping.Calories;
 
-    public override void Print(int indentLevel)
-    {
-        Inner.Print(indentLevel);
-        Console.WriteLine($"{Indent.Of(indentLevel + 1)}+ {topping}");
-    }  
+    public override string Describe(int indentLevel) =>
+        Inner.Describe(indentLevel)
+        + $"{Indent.Of(indentLevel + 1)}+ {topping}{Environment.NewLine}";
 }

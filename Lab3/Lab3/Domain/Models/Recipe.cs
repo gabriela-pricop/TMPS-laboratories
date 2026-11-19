@@ -1,8 +1,10 @@
-﻿namespace Lab3.Domain.Models;
+﻿using System.Text;
 
-public class Recipe
+namespace Lab3.Domain.Models;
+
+public class Recipe : IBakedItem
 {
-        public Recipe(
+    public Recipe(
         string name,
         string category,
         IReadOnlyList<Ingredient> dryIngredients,
@@ -41,32 +43,36 @@ public class Recipe
 
     public double TotalCalories => Ingredients.Sum(i => i.Calories);
 
-    public void Print(int indentLevel)
+    public string Describe(int indentLevel)
     {
-        string pad = Indent.Of(indentLevel);
+        StringBuilder text = new StringBuilder();
 
-        Console.WriteLine($"{pad}{Name} ({Category}) - {TotalWeightInGrams} g");
-        PrintGroup("Dry", DryIngredients, indentLevel + 1);
-        PrintGroup("Fats and sugars", FatsAndSugars, indentLevel + 1);
-        PrintGroup("Wet", WetIngredients, indentLevel + 1);
-        PrintGroup("Flavour additions", FlavourAdditions, indentLevel + 1);
+        text.AppendLine($"{Indent.Of(indentLevel)}{Name} ({Category}) - {TotalWeightInGrams} g");
+        AppendGroup(text, "Dry", DryIngredients, indentLevel + 1);
+        AppendGroup(text, "Fats and sugars", FatsAndSugars, indentLevel + 1);
+        AppendGroup(text, "Wet", WetIngredients, indentLevel + 1);
+        AppendGroup(text, "Flavour additions", FlavourAdditions, indentLevel + 1);
+
+        return text.ToString();
     }
 
-    private static void PrintGroup(string title, IReadOnlyList<Ingredient> ingredients, int indentLevel)
+    private static void AppendGroup(
+        StringBuilder text,
+        string title,
+        IReadOnlyList<Ingredient> ingredients,
+        int indentLevel)
     {
-        string pad = Indent.Of(indentLevel);
-
-        Console.WriteLine($"{pad}{title}:");
+        text.AppendLine($"{Indent.Of(indentLevel)}{title}:");
 
         if (ingredients.Count == 0)
         {
-            Console.WriteLine($"{Indent.Of(indentLevel + 1)}- none");
+            text.AppendLine($"{Indent.Of(indentLevel + 1)}- none");
             return;
         }
 
         foreach (Ingredient ingredient in ingredients)
         {
-            Console.WriteLine($"{Indent.Of(indentLevel + 1)}- {ingredient}");
+            text.AppendLine($"{Indent.Of(indentLevel + 1)}- {ingredient}");
         }
     }
 }

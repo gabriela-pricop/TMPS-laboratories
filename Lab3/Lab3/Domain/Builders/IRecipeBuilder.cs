@@ -2,7 +2,7 @@
 
 namespace Lab3.Domain.Builders;
 
-public class IRecipeBuilder
+public interface IRecipeBuilder
 {
     void Reset();
 

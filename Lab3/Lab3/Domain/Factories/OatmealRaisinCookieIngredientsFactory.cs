@@ -3,11 +3,11 @@ using Lab3.Patterns.Flyweight;
 
 namespace Lab3.Domain.Factories;
 
-public class OatmealRaisinCookieIngredientsFactory
+public class OatmealRaisinCookieIngredientsFactory : IRecipeIngredientsFactory
 {
-    private readonly IngredientTypeFactory types;
+    private readonly IIngredientTypeProvider types;
 
-    public OatmealRaisinCookieIngredientsFactory(IngredientTypeFactory types)
+    public OatmealRaisinCookieIngredientsFactory(IIngredientTypeProvider types)
     {
         this.types = types;
     }

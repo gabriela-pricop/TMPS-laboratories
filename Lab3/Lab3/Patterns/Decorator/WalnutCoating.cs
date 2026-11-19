@@ -7,7 +7,7 @@ public class WalnutCoating : BakedItemDecorator
 {
     private readonly Ingredient topping;
 
-    public WalnutCoating(IBakedItem inner, IngredientTypeFactory types)
+    public WalnutCoating(IBakedItem inner, IIngredientTypeProvider types)
         : base(inner)
     {
         topping = new Ingredient(types.Get("Walnuts"), 30, "chopped, rolled in");
@@ -23,9 +23,7 @@ public class WalnutCoating : BakedItemDecorator
 
     public override double TotalCalories => Inner.TotalCalories + topping.Calories;
 
-    public override void Print(int indentLevel)
-    {
-        Inner.Print(indentLevel);
-        Console.WriteLine($"{Indent.Of(indentLevel + 1)}+ {topping}");
-    }
+    public override string Describe(int indentLevel) =>
+        Inner.Describe(indentLevel)
+        + $"{Indent.Of(indentLevel + 1)}+ {topping}{Environment.NewLine}";
 }

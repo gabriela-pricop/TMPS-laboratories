@@ -7,7 +7,7 @@ public class SeaSaltTopping : BakedItemDecorator
 {
     private readonly Ingredient topping;
 
-    public SeaSaltTopping(IBakedItem inner, IngredientTypeFactory types)
+    public SeaSaltTopping(IBakedItem inner, IIngredientTypeProvider types)
         : base(inner)
     {
         topping = new Ingredient(types.Get("Salt"), 4, "flaky, sprinkled on top");
@@ -23,9 +23,7 @@ public class SeaSaltTopping : BakedItemDecorator
 
     public override double TotalCalories => Inner.TotalCalories + topping.Calories;
 
-    public override void Print(int indentLevel)
-    {
-        Inner.Print(indentLevel);
-        Console.WriteLine($"{Indent.Of(indentLevel + 1)}+ {topping}");
-    }
+    public override string Describe(int indentLevel) =>
+        Inner.Describe(indentLevel)
+        + $"{Indent.Of(indentLevel + 1)}+ {topping}{Environment.NewLine}";
 }

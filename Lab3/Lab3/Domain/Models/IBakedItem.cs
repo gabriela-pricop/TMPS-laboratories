@@ -1,6 +1,6 @@
 ﻿namespace Lab3.Domain.Models;
 
-public class IBakedItem
+public interface IBakedItem
 {
     string Name { get; }
 
@@ -10,5 +10,5 @@ public class IBakedItem
 
     double TotalCalories { get; }
 
-    void Print(int indentLevel);
+    string Describe(int indentLevel);
 }

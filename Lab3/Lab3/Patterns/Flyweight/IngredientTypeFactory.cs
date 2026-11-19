@@ -1,6 +1,6 @@
 ﻿namespace Lab3.Patterns.Flyweight;
 
-public class IngredientTypeFactory
+public class IngredientTypeFactory : IIngredientTypeProvider
 {
     private static readonly IReadOnlyDictionary<string, (double Calories, string Allergen)> KnownIngredients =
         new Dictionary<string, (double, string)>(StringComparer.OrdinalIgnoreCase)

@@ -2,7 +2,7 @@
 
 namespace Lab3.Domain.Factories;
 
-public class IRecipeIngredientsFactory
+public interface IRecipeIngredientsFactory
 {
     IReadOnlyList<Ingredient> CreateDryIngredients();
 

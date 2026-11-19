@@ -3,11 +3,11 @@ using Lab3.Patterns.Flyweight;
 
 namespace Lab3.Domain.Factories;
 
-public class BananaNutMuffinIngredientsFactory
+public class BananaNutMuffinIngredientsFactory : IRecipeIngredientsFactory
 {
-    private readonly IngredientTypeFactory types;
+    private readonly IIngredientTypeProvider types;
 
-    public BananaNutMuffinIngredientsFactory(IngredientTypeFactory types)
+    public BananaNutMuffinIngredientsFactory(IIngredientTypeProvider types)
     {
         this.types = types;
     }

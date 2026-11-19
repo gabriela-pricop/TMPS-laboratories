@@ -1,4 +1,5 @@
-﻿using Lab3.Domain.Models;
+﻿using System.Text;
+using Lab3.Domain.Models;
 
 namespace Lab3.Patterns.Composite;
 
@@ -30,15 +31,18 @@ public class GiftBox : IBakedItem
 
     public double TotalCalories => items.Sum(item => item.TotalCalories);
 
-    public void Print(int indentLevel)
+    public string Describe(int indentLevel)
     {
-        string pad = Indent.Of(indentLevel);
+        StringBuilder text = new StringBuilder();
 
-        Console.WriteLine($"{pad}[{Name}] - {items.Count} item(s), {TotalWeightInGrams} g");
+        text.AppendLine(
+            $"{Indent.Of(indentLevel)}[{Name}] - {items.Count} item(s), {TotalWeightInGrams} g");
 
         foreach (IBakedItem item in items)
         {
-            item.Print(indentLevel + 1);
+            text.Append(item.Describe(indentLevel + 1));
         }
+
+        return text.ToString();
     }
 }

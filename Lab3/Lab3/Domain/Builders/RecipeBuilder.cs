@@ -2,7 +2,7 @@
 
 namespace Lab3.Domain.Builders;
 
-public class RecipeBuilder
+public class RecipeBuilder : IRecipeBuilder
 {
     private string name = string.Empty;
     private string category = string.Empty;

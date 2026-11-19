@@ -1,4 +1,5 @@
 ﻿using Lab3.Domain.Builders;
+using Lab3.Domain.Factories;
 using Lab3.Domain.Models;
 using Lab3.Patterns.Flyweight;
 
@@ -6,7 +7,12 @@ namespace Lab3.Domain.Shops;
 
 public abstract class BakeryShop
 {
-    protected BakeryShop(IngredientTypeFactory types)
+    private readonly List<string> menu = new List<string>();
+
+    private readonly Dictionary<string, Func<IIngredientTypeProvider, IRecipeIngredientsFactory>> products =
+        new Dictionary<string, Func<IIngredientTypeProvider, IRecipeIngredientsFactory>>();
+
+    protected BakeryShop(IIngredientTypeProvider types)
     {
         Types = types;
         Director = new RecipeDirector(new RecipeBuilder());
@@ -14,13 +20,34 @@ public abstract class BakeryShop
 
     public abstract string ShopName { get; }
 
-    public abstract IReadOnlyList<string> Menu { get; }
+    protected abstract string Category { get; }
 
-    protected IngredientTypeFactory Types { get; }
+    public IReadOnlyList<string> Menu => menu;
+
+    protected IIngredientTypeProvider Types { get; }
 
     protected RecipeDirector Director { get; }
 
-    protected abstract IBakedItem CreateBakedItem(int menuPosition);
+    public void AddProduct(
+        string productName,
+        Func<IIngredientTypeProvider, IRecipeIngredientsFactory> createIngredients)
+    {
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            throw new ArgumentException("A product needs a name.", nameof(productName));
+        }
+
+        ArgumentNullException.ThrowIfNull(createIngredients);
+
+        if (products.ContainsKey(productName))
+        {
+            throw new InvalidOperationException(
+                $"{ShopName} already sells a product named '{productName}'.");
+        }
+
+        products[productName] = createIngredients;
+        menu.Add(productName);
+    }
 
     public IBakedItem Order(int menuPosition)
     {
@@ -32,6 +59,14 @@ public abstract class BakeryShop
         }
 
         return CreateBakedItem(menuPosition);
+    }
+
+    protected virtual IBakedItem CreateBakedItem(int menuPosition)
+    {
+        string productName = menu[menuPosition - 1];
+        IRecipeIngredientsFactory ingredients = products[productName](Types);
+
+        return Director.Construct(productName, Category, ingredients);
     }
 
     public void PrintMenu()

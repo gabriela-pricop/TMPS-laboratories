@@ -2,7 +2,7 @@
 
 namespace Lab3.Patterns.Decorator;
 
-public class BakedItemDecorator : IBakedItem
+public abstract class BakedItemDecorator : IBakedItem
 {
     protected BakedItemDecorator(IBakedItem inner)
     {
@@ -19,5 +19,5 @@ public class BakedItemDecorator : IBakedItem
 
     public virtual double TotalCalories => Inner.TotalCalories;
 
-    public virtual void Print(int indentLevel) => Inner.Print(indentLevel);
+    public virtual string Describe(int indentLevel) => Inner.Describe(indentLevel);
 }
