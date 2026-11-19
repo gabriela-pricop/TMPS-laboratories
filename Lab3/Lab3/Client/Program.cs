@@ -2,7 +2,6 @@
 using Lab3.Domain.Shops;
 using Lab3.Patterns.Composite;
 using Lab3.Patterns.Decorator;
-using Lab3.Patterns.Facade;
 using Lab3.Patterns.Flyweight;
 
 namespace Lab3;
@@ -22,20 +21,31 @@ class Program
     {
         if (args.Contains("--demo"))
         {
-            RunPatternDemo(new BakeryFacade());
+            RunFreshPatternDemo();
             return;
         }
 
-        RunInteractive(new BakeryFacade());
+        IngredientTypeFactory types = new IngredientTypeFactory();
+
+        RunInteractive(types, CreateShops(types));
     }
+
+    // Every shop of the bakery, all sharing one flyweight pool of ingredient types.
+    private static IReadOnlyList<BakeryShop> CreateShops(IIngredientTypeProvider types) =>
+        new List<BakeryShop>
+        {
+            new CookieShop(types),
+            new CroissantShop(types),
+            new MuffinShop(types)
+        };
 
     // ------------------------------------------------------------------
     // Interactive bakery
     // ------------------------------------------------------------------
 
-    private static void RunInteractive(BakeryFacade bakery)
+    private static void RunInteractive(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops)
     {
-        GiftBox order = bakery.NewGiftBox("My order");
+        GiftBox order = new GiftBox("My order");
 
         Console.WriteLine(new string('=', 70));
         Console.WriteLine("  Welcome to the Bakery");
@@ -54,16 +64,16 @@ class Program
             switch (ReadChoice(0, 4))
             {
                 case 1:
-                    OrderProduct(bakery, order);
+                    OrderProduct(types, shops, order);
                     break;
                 case 2:
-                    OrderGiftBox(bakery, order);
+                    OrderGiftBox(types, shops, order);
                     break;
                 case 3:
-                    ShowOrder(bakery, order);
+                    ShowOrder(types, order);
                     break;
                 case 4:
-                    RunPatternDemo(new BakeryFacade());
+                    RunFreshPatternDemo();
                     break;
                 case 0:
                     Checkout(order);
@@ -73,43 +83,43 @@ class Program
     }
 
     // Keeps returning to the shop list after each product; 0 at the shop list goes back to the main menu.
-    private static void OrderProduct(BakeryFacade bakery, GiftBox order)
+    private static void OrderProduct(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops, GiftBox order)
     {
         while (true)
         {
-            IBakedItem? item = ChooseProduct(bakery, "");
+            IBakedItem? item = ChooseProduct(shops, "");
 
             if (item == null)
             {
                 return;
             }
 
-            order.Add(ChooseToppings(bakery, item, ""));
+            order.Add(ChooseToppings(types, item, ""));
 
             Console.WriteLine();
             Console.WriteLine("Added to your order.");
         }
     }
 
-    private static void OrderGiftBox(BakeryFacade bakery, GiftBox order)
+    private static void OrderGiftBox(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops, GiftBox order)
     {
         Console.WriteLine();
         string name = ReadText("Name of the gift box: ", "Gift box");
-        GiftBox box = bakery.NewGiftBox(name);
+        GiftBox box = new GiftBox(name);
 
         while (true)
         {
             Console.WriteLine();
             Console.WriteLine($"Add products to \"{box.Name}\" (0 = close the box)");
 
-            IBakedItem? item = ChooseProduct(bakery, "  ");
+            IBakedItem? item = ChooseProduct(shops, "  ");
 
             if (item == null)
             {
                 break;
             }
 
-            box.Add(ChooseToppings(bakery, item, "  "));
+            box.Add(ChooseToppings(types, item, "  "));
             Console.WriteLine($"  Added. Box now has {box.Items.Count} item(s).");
         }
 
@@ -128,26 +138,26 @@ class Program
     }
 
     // Returns null when the customer goes back without choosing.
-    private static IBakedItem? ChooseProduct(BakeryFacade bakery, string pad)
+    private static IBakedItem? ChooseProduct(IReadOnlyList<BakeryShop> shops, string pad)
     {
         Console.WriteLine();
         Console.WriteLine($"{pad}Shops in this bakery:");
 
-        for (int i = 0; i < bakery.Shops.Count; i++)
+        for (int i = 0; i < shops.Count; i++)
         {
-            Console.WriteLine($"{pad}  {i + 1}) {bakery.Shops[i].ShopName}");
+            Console.WriteLine($"{pad}  {i + 1}) {shops[i].ShopName}");
         }
 
         Console.WriteLine($"{pad}  0) Back");
 
-        int shopPosition = ReadChoice(0, bakery.Shops.Count, pad);
+        int shopPosition = ReadChoice(0, shops.Count, pad);
 
         if (shopPosition == 0)
         {
             return null;
         }
 
-        BakeryShop shop = bakery.Shops[shopPosition - 1];
+        BakeryShop shop = shops[shopPosition - 1];
 
         Console.WriteLine();
         Console.WriteLine($"{pad}{shop.ShopName}");
@@ -166,7 +176,7 @@ class Program
             return null;
         }
 
-        IBakedItem item = bakery.Order(shopPosition, menuPosition);
+        IBakedItem item = shop.Order(menuPosition);
 
         Console.WriteLine();
         Console.WriteLine($"{pad}Built: {item.Name} ({item.TotalWeightInGrams} g)");
@@ -175,7 +185,7 @@ class Program
     }
 
     // Wraps the item in one decorator per chosen topping, in the order they are chosen.
-    private static IBakedItem ChooseToppings(BakeryFacade bakery, IBakedItem item, string pad)
+    private static IBakedItem ChooseToppings(IIngredientTypeProvider types, IBakedItem item, string pad)
     {
         Console.WriteLine();
         Console.WriteLine($"{pad}Add a topping to {item.Name}? (0 = done)");
@@ -194,12 +204,12 @@ class Program
                 return item;
             }
 
-            item = Toppings[choice - 1].Apply(item, bakery.Types);
+            item = Toppings[choice - 1].Apply(item, types);
             Console.WriteLine($"{pad}  -> {item.Name} ({item.TotalWeightInGrams} g)");
         }
     }
 
-    private static void ShowOrder(BakeryFacade bakery, GiftBox order)
+    private static void ShowOrder(IngredientTypeFactory types, GiftBox order)
     {
         Console.WriteLine();
 
@@ -223,7 +233,7 @@ class Program
         Console.WriteLine($"Total calories    : {Math.Round(order.TotalCalories)} kcal");
         Console.WriteLine($"Allergens         : {string.Join(", ", allergens)}");
         Console.WriteLine($"Ingredient entries: {order.Ingredients.Count}");
-        Console.WriteLine($"Shared types      : {bakery.Types.PooledTypeCount}");
+        Console.WriteLine($"Shared types      : {types.PooledTypeCount}");
     }
 
     private static void Checkout(GiftBox order)
@@ -275,30 +285,38 @@ class Program
     // Scripted pattern demo (option 4, or: dotnet run -- --demo)
     // ------------------------------------------------------------------
 
-    private static void RunPatternDemo(BakeryFacade bakery)
+    // Runs the demo on a new pool and new shops, so its numbers do not depend on what was ordered.
+    private static void RunFreshPatternDemo()
     {
-        Section("1. Flyweight - one ingredient type shared by every recipe");
-        DemonstrateFlyweight(bakery);
+        IngredientTypeFactory types = new IngredientTypeFactory();
 
-        Section("2. Decorator - toppings added at run time, in any order");
-        DemonstrateDecorator(bakery);
-
-        Section("3. Composite - a box of items behaves like a single item");
-        DemonstrateComposite(bakery);
-
-        Section("4. All three patterns on one order");
-        DemonstrateCombinedOrder(bakery);
+        RunPatternDemo(types, CreateShops(types));
     }
 
-    private static void DemonstrateFlyweight(BakeryFacade bakery)
+    private static void RunPatternDemo(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops)
+    {
+        Section("1. Flyweight - one ingredient type shared by every recipe");
+        DemonstrateFlyweight(types, shops);
+
+        Section("2. Decorator - toppings added at run time, in any order");
+        DemonstrateDecorator(types, shops);
+
+        Section("3. Composite - a box of items behaves like a single item");
+        DemonstrateComposite(shops);
+
+        Section("4. All three patterns on one order");
+        DemonstrateCombinedOrder(types, shops);
+    }
+
+    private static void DemonstrateFlyweight(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops)
     {
         List<IBakedItem> everything = new List<IBakedItem>();
 
-        for (int shop = 1; shop <= bakery.Shops.Count; shop++)
+        for (int shop = 1; shop <= shops.Count; shop++)
         {
-            for (int product = 1; product <= bakery.Shops[shop - 1].Menu.Count; product++)
+            for (int product = 1; product <= shops[shop - 1].Menu.Count; product++)
             {
-                everything.Add(bakery.Order(shop, product));
+                everything.Add(shops[shop - 1].Order(product));
             }
         }
 
@@ -306,7 +324,7 @@ class Program
 
         Console.WriteLine($"Products built          : {everything.Count}");
         Console.WriteLine($"Ingredient entries      : {ingredientEntries}");
-        Console.WriteLine($"Distinct shared types   : {bakery.Types.PooledTypeCount}");
+        Console.WriteLine($"Distinct shared types   : {types.PooledTypeCount}");
         Console.WriteLine();
 
         IngredientType flourInCookie = everything[0]
@@ -322,7 +340,7 @@ class Program
 
         Console.WriteLine("Allergens declared once per type and read by every recipe:");
 
-        foreach (IngredientType type in bakery.Types.PooledTypes
+        foreach (IngredientType type in types.PooledTypes
                      .Where(t => t.HasAllergen)
                      .OrderBy(t => t.Name))
         {
@@ -330,12 +348,12 @@ class Program
         }
     }
 
-    private static void DemonstrateDecorator(BakeryFacade bakery)
+    private static void DemonstrateDecorator(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops)
     {
-        IBakedItem plain = bakery.Order(1, 1);
+        IBakedItem plain = shops[0].Order(1);
 
-        IBakedItem salted = new SeaSaltTopping(plain, bakery.Types);
-        IBakedItem saltedAndDrizzled = new ChocolateDrizzle(salted, bakery.Types);
+        IBakedItem salted = new SeaSaltTopping(plain, types);
+        IBakedItem saltedAndDrizzled = new ChocolateDrizzle(salted, types);
 
         Console.WriteLine($"{plain.Name}");
         Console.WriteLine($"  {plain.TotalWeightInGrams} g");
@@ -346,8 +364,8 @@ class Program
         Console.WriteLine();
 
         IBakedItem otherOrder = new SeaSaltTopping(
-            new ChocolateDrizzle(bakery.Order(1, 1), bakery.Types),
-            bakery.Types);
+            new ChocolateDrizzle(shops[0].Order(1), types),
+            types);
 
         Console.WriteLine("The same two toppings applied in the opposite order:");
         Console.WriteLine($"  {otherOrder.Name}");
@@ -358,19 +376,19 @@ class Program
         Console.Write(saltedAndDrizzled.Describe(1));
         Console.WriteLine();
         Console.WriteLine($"No new ingredient types were created: pool is still "
-                          + $"{bakery.Types.PooledTypeCount} types.");
+                          + $"{types.PooledTypeCount} types.");
     }
 
-    private static void DemonstrateComposite(BakeryFacade bakery)
+    private static void DemonstrateComposite(IReadOnlyList<BakeryShop> shops)
     {
-        GiftBox cookieBox = bakery.NewGiftBox("Cookie selection");
-        cookieBox.Add(bakery.Order(1, 1));
-        cookieBox.Add(bakery.Order(1, 2));
+        GiftBox cookieBox = new GiftBox("Cookie selection");
+        cookieBox.Add(shops[0].Order(1));
+        cookieBox.Add(shops[0].Order(2));
 
-        GiftBox hamper = bakery.NewGiftBox("Weekend hamper");
+        GiftBox hamper = new GiftBox("Weekend hamper");
         hamper.Add(cookieBox);
-        hamper.Add(bakery.Order(2, 2));
-        hamper.Add(bakery.Order(3, 1));
+        hamper.Add(shops[1].Order(2));
+        hamper.Add(shops[2].Order(1));
 
         Console.Write(hamper.Describe(0));
         Console.WriteLine();
@@ -384,27 +402,27 @@ class Program
         Console.WriteLine($"  Total calories  : {Math.Round(asItem.TotalCalories)} kcal");
     }
 
-    private static void DemonstrateCombinedOrder(BakeryFacade bakery)
+    private static void DemonstrateCombinedOrder(IngredientTypeFactory types, IReadOnlyList<BakeryShop> shops)
     {
         IBakedItem cookie = new ChocolateDrizzle(
-            new SeaSaltTopping(bakery.Order(1, 1), bakery.Types),
-            bakery.Types);
+            new SeaSaltTopping(shops[0].Order(1), types),
+            types);
 
-        IBakedItem muffin = new WalnutCoating(bakery.Order(3, 1), bakery.Types);
+        IBakedItem muffin = new WalnutCoating(shops[2].Order(1), types);
 
-        GiftBox box = bakery.NewGiftBox("Gift box for two");
+        GiftBox box = new GiftBox("Gift box for two");
         box.Add(cookie);
         box.Add(muffin);
 
-        IBakedItem wrappedBox = new ChocolateDrizzle(box, bakery.Types);
+        IBakedItem wrappedBox = new ChocolateDrizzle(box, types);
 
         Console.Write(wrappedBox.Describe(0));
         Console.WriteLine();
         Console.WriteLine($"Order name  : {wrappedBox.Name}");
         Console.WriteLine($"Total weight: {wrappedBox.TotalWeightInGrams} g");
-        Console.WriteLine($"Shared types: {bakery.Types.PooledTypeCount}");
+        Console.WriteLine($"Shared types: {types.PooledTypeCount}");
         Console.WriteLine();
-        Console.WriteLine("The order passed through the facade, the factory method of the shop,");
+        Console.WriteLine("The order passed through the factory method of the shop,");
         Console.WriteLine("the builder and its director, the abstract factory of the ingredients,");
         Console.WriteLine("the flyweight pool, three decorators and one composite box.");
     }

@@ -20,4 +20,8 @@
         <Using Include="NUnit.Framework"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\Lab3\Lab3.csproj"/>
+    </ItemGroup>
+
 </Project>
